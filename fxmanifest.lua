@@ -10,4 +10,7 @@ version '1.0.0'
 server_scripts {
     'config.lua',
     'server/main.lua',
+    'server/modules.lua',
+    'modules/standalone_playtime.lua',
+    'modules/ox_items_used.lua',
 }

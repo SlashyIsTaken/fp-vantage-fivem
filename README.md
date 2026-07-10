@@ -13,6 +13,8 @@ Other resources on your server call Vantage's exports to report two kinds of act
 
 The resource buffers these in memory, batches them, and sends them to the Vantage API on an interval. Members are created automatically the first time they are seen, so there is no player list to maintain.
 
+There are two ways to feed this data in. Switch on a prebuilt **module** from your dashboard for common data with no scripting, or call the **exports** from your own scripts for anything custom. Most servers use both. See [Modules](#modules-no-scripting-required) and [Exports](#exports).
+
 ---
 
 ## Quickstart
@@ -72,6 +74,27 @@ The rest live in `config.lua`:
 > **Dev vs prod:** the resource is committed with no key in it. Production servers set `vantage_api_key` in their (uncommitted) `server.cfg`; developers running a local server simply leave it unset, so their server never pushes into your production instance.
 
 > **Identifier note:** if a player has no identifier of the configured type (for example `IdentifierType = "discord"` but the player has not linked Discord), events for that player are silently skipped. Make sure your server enforces the identifier you track.
+
+---
+
+## Modules (no scripting required)
+
+Not every server owner wants to write Lua. Vantage ships a set of **modules**: ready-made collectors that already know how to read common data. They sit in **standby** and do nothing until you switch one on from your Vantage dashboard, under **Settings → Library**.
+
+**How activation works.** Once `vantage_api_key` is set, the resource checks the backend every ~30 seconds for the list of modules you have enabled and wires each one on or off to match. Enable a module in the dashboard and it starts collecting within about half a minute, with no server restart and no config edit. A server with no key never polls, so dev servers stay silent as usual.
+
+Each module writes under a **tag** and comes with premade leaderboards you can add from a panel's **Add from library** button, which also subscribes the panel to that tag for you.
+
+**Available modules:**
+
+| Module | Requires | Collects | Tag |
+| --- | --- | --- | --- |
+| Playtime | nothing | one timed session per connected player, opened on join and closed on disconnect | `server` |
+| Items Used (ox_inventory) | `ox_inventory` | one event each time a player uses an item | `items` |
+
+A module that depends on another resource (for example `ox_inventory`) only runs when that resource is started. If it is missing, the module stays inactive and logs a short notice in the console, so enabling it early does no harm.
+
+Modules and your own export calls coexist. Many owners start with a module to get their first leaderboard in minutes, then add custom `push_event` calls later.
 
 ---
 
@@ -162,6 +185,8 @@ Because closing on stop relies on an outbound HTTP request that may not finish d
 
 This means data appears in the dashboard with up to `BatchFlushInterval` seconds of delay.
 
+Modules feed the same queue. In parallel with the flush loop, the resource polls `GET {ApiBaseUrl}/modules` every ~30 seconds to learn which modules you have enabled, then wires their collectors on or off. Those collectors call the same internal path as the exports, so their data flows through steps 2 to 4 above.
+
 ---
 
 ## Troubleshooting
@@ -186,6 +211,13 @@ This means data appears in the dashboard with up to `BatchFlushInterval` seconds
 **Events show under the wrong leaderboard, or not at all**
 
 - The `eventType` (or `sessionType`) string must exactly match what the leaderboard or requirement is configured to read, and the panel must subscribe to the `tag` you send.
+
+**A module I enabled in the dashboard collects nothing**
+
+- Confirm `vantage_api_key` is set. Without a key the resource never polls for modules.
+- Wait ~30 seconds after enabling. Activation is picked up on the next poll, not instantly.
+- If the module needs another resource (such as `ox_inventory`), confirm that resource is started. The console logs a notice when a module is skipped for a missing dependency.
+- As with exports, players still need the identifier your instance tracks (Discord or Steam), or their data is skipped.
 
 ---
 

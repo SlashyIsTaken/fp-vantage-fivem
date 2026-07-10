@@ -76,9 +76,12 @@ local function enqueueSessionEnd(identifier, sessionType, tag)
     }
 end
 
--- ── Exports ──────────────────────────────────────────────────────────────────
+-- ── Internal enqueue API ─────────────────────────────────────────────────────
+-- The exports below and the library modules (server/modules.lua) all funnel
+-- through these named functions. Modules call them via the `Vantage` global so
+-- they don't have to go through the export layer.
 
-exports("push_event", function(source, eventType, tag, value, metadata)
+local function pushEvent(source, eventType, tag, value, metadata)
     local identifier = getIdentifier(source)
     if not identifier then return end
 
@@ -92,9 +95,9 @@ exports("push_event", function(source, eventType, tag, value, metadata)
         metadata     = metadata,
         occurred_at  = os.time(),
     }
-end)
+end
 
-exports("start_session", function(source, sessionType, tag)
+local function startSession(source, sessionType, tag)
     local identifier = getIdentifier(source)
     if not identifier then return end
 
@@ -118,9 +121,9 @@ exports("start_session", function(source, sessionType, tag)
         session_type = sessionType,
         tag          = tag or "",
     }
-end)
+end
 
-exports("end_session", function(source, sessionType, tag)
+local function endSession(source, sessionType, tag)
     local identifier = getIdentifier(source)
     if not identifier then return end
 
@@ -134,7 +137,22 @@ exports("end_session", function(source, sessionType, tag)
             openSessions[source] = nil
         end
     end
-end)
+end
+
+-- ── Exports ──────────────────────────────────────────────────────────────────
+
+exports("push_event", pushEvent)
+exports("start_session", startSession)
+exports("end_session", endSession)
+
+-- Internal API shared with library modules (same Lua state, loaded after this).
+Vantage = {
+    pushEvent     = pushEvent,
+    startSession  = startSession,
+    endSession    = endSession,
+    getApiKey     = getApiKey,
+    getApiBaseUrl = getApiBaseUrl,
+}
 
 -- ── Lifecycle hooks ───────────────────────────────────────────────────────────
 
